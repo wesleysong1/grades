@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2학기 2차고사 성적 조회</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">2학기 2차고사 성적 조회</h1>
+        <form id="gradeForm">
+            <div class="mb-3">
+                <label for="classSelect" class="form-label">반 선택</label>
+                <select class="form-select" id="classSelect" required>
+                    <option value="" selected>반을 선택하세요</option>
+                    <option value="1">1반</option>
+                    <option value="2">2반</option>
+                    <option value="3">3반</option>
+                    <option value="4">4반</option>
+                    <option value="5">5반</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="studentName" class="form-label">학생 이름</label>
+                <input type="text" class="form-control" id="studentName" placeholder="학생 이름을 입력하세요" required>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">비밀번호</label>
+                <input type="password" class="form-control" id="password" placeholder="비밀번호를 입력하세요" required>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="showResults()">조회</button>
+        </form>
+        <div id="result" class="mt-4">
+            <!-- 결과가 여기에 표시됩니다 -->
+        </div>
+    </div>
+
+    <script>
+        async function loadJSON() {
+            const response = await fetch('grades.json');
+            return response.json();
+        }
+
+        function calculateRank(data, classNumber, average) {
+            const classData = data.filter(item => item.반.trim() === classNumber);
+            const allData = data;
+
+            // 학급 내 석차
+            const classRank = classData
+                .map(item => ({
+                    평균: (parseFloat(item.국어) + parseFloat(item.사회) + parseFloat(item.수학) + parseFloat(item.과학) + parseFloat(item.영어)) / 5
+                }))
+                .sort((a, b) => b.평균 - a.평균)
+                .map(item => item.평균)
+                .indexOf(average) + 1;
+
+            // 전교 석차
+            const schoolRank = allData
+                .map(item => ({
+                    평균: (parseFloat(item.국어) + parseFloat(item.사회) + parseFloat(item.수학) + parseFloat(item.과학) + parseFloat(item.영어)) / 5
+                }))
+                .sort((a, b) => b.평균 - a.평균)
+                .map(item => item.평균)
+                .indexOf(average) + 1;
+
+            return {
+                classRank: `${classRank}/${classData.length}`,
+                schoolRank: `${schoolRank}/${allData.length}`
+            };
+        }
+
+        async function showResults() {
+            const classSelect = document.getElementById('classSelect').value.trim();
+            const studentName = document.getElementById('studentName').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!classSelect || !studentName || !password) {
+                alert("모든 필드를 입력하세요.");
+                return;
+            }
+
+            const data = await loadJSON();
+            const student = data.find(item => 
+                item.반.trim() === classSelect &&
+                item.성명.trim() === studentName &&
+                item.비밀번호.trim() === password
+            );
+
+            const resultDiv = document.getElementById('result');
+            if (student) {
+                const average = (
+                    (parseFloat(student.국어) +
+                    parseFloat(student.사회) +
+                    parseFloat(student.수학) +
+                    parseFloat(student.과학) +
+                    parseFloat(student.영어)) / 5
+                ).toFixed(2);
+
+                const ranks = calculateRank(data, classSelect, parseFloat(average));
+
+                resultDiv.innerHTML = `
+                    <h3>${student.성명} 학생의 성적</h3>
+                    <ul>
+                        <li>국어: ${student.국어.trim()}점</li>
+                        <li>사회: ${student.사회.trim()}점</li>
+                        <li>수학: ${student.수학.trim()}점</li>
+                        <li>과학: ${student.과학.trim()}점</li>
+                        <li>영어: ${student.영어.trim()}점</li>
+                        <li>평균 점수: ${average}점</li>
+                        <li>학급 석차: ${ranks.classRank}</li>
+                        <li>전교 석차: ${ranks.schoolRank}</li>
+                    </ul>
+                `;
+            } else {
+                resultDiv.innerHTML = `<p class="text-danger">학생 정보가 잘못되었습니다. 다시 확인해주세요.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
